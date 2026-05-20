@@ -1,0 +1,50 @@
+MODELE RELATIONNEL - Projet VCub
+=================================
+
+Convention :
+  - Cle primaire : SOULIGNEE (notee entre crochets [ ] ici, faute de soulignement en .txt)
+  - Cle etrangere : prefixee par #
+  - UNIQUE : (UNIQUE) en fin de ligne
+
+
+-- Tables issues du besoin 1 (Station, Plot, Velo) --
+
+Station ( [numStation], nomStation, capaciteStation, etatMaintenanceStation, numBorne (UNIQUE) )
+
+Plot ( [numPlot], etatMaintenancePlot, etatUtilisationPlot,
+       #numStation, #numVelo (UNIQUE, nullable) )
+    #numStation -> Station.numStation
+    #numVelo    -> Velo.numVelo
+    Justifications :
+      - "situer" 1,1 cote Plot / 0,n cote Station => FK numStation dans Plot.
+      - "accrocher" 0,1 cote Velo / 0,1 cote Plot
+        => option retenue (b) : FK numVelo dans Plot, nullable, UNIQUE.
+        Le plot est une borne physique fixe qui "recoit" un velo ;
+        le velo est mobile (en circulation, perdu, sans plot)
+        Le UNIQUE garantit la cardinalite 0,1 cote Velo
+        (un velo ne peut etre accroche qu'a un seul plot a la fois)
+
+Velo ( [numVelo], etatMaintenanceVelo, etatUtilisationVelo, dateMiseEnCirculation )
+
+
+-- Tables issues du besoin 2 (Abonnement, Abonne) --
+
+Abonnement ( [codeAbonnement], libelleAbonnement, dureeAbonnement,
+             montantAbonnement, creditTempsBase, tarifHoraire, caution )
+
+Abonne ( [numAbonne], codeSecret, nomAbonne, prenomAbonne, creditTemps,
+         dateDebutAbonnement, dateFinAbonnement, #codeAbonnement )
+    #codeAbonnement -> Abonnement.codeAbonnement
+    Justification : association "abonner" 1,1 cote Abonne / 0,n cote Abonnement.
+
+
+-- Tables issues du besoin 3 (Emprunt) --
+-- (inclus dans le MR complet meme si besoin 3 non implemente cote Python)
+
+Emprunt ( [numEmprunt], dateHeureDebutEmprunt, dateHeureFinEmprunt,
+          #numAbonne, #numVelo )
+    #numAbonne -> Abonne.numAbonne
+    #numVelo   -> Velo.numVelo
+    Justification :
+      - "realiser" 1,1 cote Emprunt / 0,n cote Abonne => FK numAbonne dans Emprunt.
+      - "concerner" 1,1 cote Emprunt / 0,n cote Velo  => FK numVelo dans Emprunt.
