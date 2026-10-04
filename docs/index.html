@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VCub Back-Office</title>
+<meta name="description" content="Application console de gestion des stations et abonnements VCub sur PostgreSQL : une session enregistrée, rejouée dans le navigateur.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/asciinema-player@3.17.0/dist/bundle/asciinema-player.css">
+<style>
+/* Mise en page : une colonne, le terminal au centre, les chapitres et les chiffres de la base juste dessous. */
+:root {
+  --bg: #f3f5f6; --fg: #15212a; --muted: #55656f; --line: #d5dde2;
+  --accent: #0b6f86; --accent-ink: #ffffff; --panel: #ffffff; --term: #121a20;
+  --font-ui: "Public Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root {
+  --bg: #0f161b; --fg: #e4ebef; --muted: #93a4ae; --line: #26343d;
+  --accent: #4cc0db; --accent-ink: #062530; --panel: #152029; --term: #0a1014; color-scheme: dark } }
+
+body { background: var(--bg); color: var(--fg); font: 16px/1.55 var(--font-ui); }
+.page { max-width: 980px; margin: 0 auto; padding-inline: 16px; padding-block: 40px 56px; display: grid; gap: 28px; }
+.eyebrow { font: 600 12px/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+h1 { font-weight: 800; font-size: clamp(30px, 5vw, 44px); line-height: 1.05; letter-spacing: -.02em; margin: 0 0 12px; text-wrap: balance; }
+.lede { max-width: 62ch; margin: 0; color: var(--muted); }
+.stack { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 0; padding: 0; list-style: none; }
+.stack li { font: 400 13px/1 var(--font-mono); border: 1px solid var(--line); border-radius: 999px; padding: 6px 10px; }
+.terminal { background: var(--term); border-radius: 10px; padding: 10px; min-width: 0; overflow: hidden; }
+.terminal .ap-wrapper { border-radius: 6px; overflow: hidden; }
+.aide { font: 400 13px/1.5 var(--font-mono); color: var(--muted); margin: 10px 0 0; }
+kbd { font: inherit; border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; color: var(--fg); }
+.bloc { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 28px; }
+@media (max-width: 760px) { .bloc { grid-template-columns: minmax(0, 1fr); } }
+h2 { font-size: 15px; font-weight: 800; margin: 0 0 12px; letter-spacing: .01em; }
+.chapitres { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.chapitres button { width: 100%; display: flex; gap: 14px; align-items: baseline; text-align: left; background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font: inherit; cursor: pointer; }
+.chapitres button:hover { border-color: var(--accent); }
+.chapitres button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.chapitres time { font: 600 13px/1 var(--font-mono); color: var(--accent); font-variant-numeric: tabular-nums; min-width: 3.2em; }
+.chiffres { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; margin: 0; }
+.chiffres div { background: var(--panel); padding: 12px 14px; }
+.chiffres dt { font-size: 13px; color: var(--muted); }
+.chiffres dd { margin: 2px 0 0; font: 600 22px/1.2 var(--font-mono); font-variant-numeric: tabular-nums; }
+.note { font-size: 14px; color: var(--muted); margin: 12px 0 0; }
+footer { border-top: 1px solid var(--line); padding-top: 16px; font-size: 14px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 8px 20px; }
+a { color: var(--accent); }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+</head>
+<body>
+<main class="page">
+  <header>
+    <p class="eyebrow">Projet de L1 · UE Base de données · mai 2026</p>
+    <h1>VCub Back-Office</h1>
+    <p class="lede">Application console qui gère les stations et les abonnements du vélo en libre-service bordelais, sur une base PostgreSQL. Session enregistrée avec asciinema et rejouée dans votre navigateur : le texte est sélectionnable.</p>
+    <ul class="stack"><li>PostgreSQL 16</li><li>Python 3</li><li>psycopg2</li><li>requêtes paramétrées</li></ul>
+  </header>
+
+  <section aria-label="Session enregistrée">
+    <div class="terminal"><div id="lecteur"></div></div>
+    <p class="aide"><kbd>Espace</kbd> pause · <kbd>←</kbd> <kbd>→</kbd> reculer, avancer · <kbd>[</kbd> <kbd>]</kbd> chapitre précédent, suivant</p>
+  </section>
+
+  <div class="bloc">
+    <section>
+      <h2>Chapitres</h2>
+      <ol class="chapitres" id="chapitres"></ol>
+    </section>
+    <section>
+      <h2>La base de démonstration</h2>
+      <dl class="chiffres">
+        <div><dt>Stations</dt><dd>67</dd></div>
+        <div><dt>Vélos</dt><dd>1 100</dd></div>
+        <div><dt>Plots</dt><dd>1 267</dd></div>
+        <div><dt>Abonnés</dt><dd>30</dd></div>
+      </dl>
+      <p class="note">Les 67 stations viennent du fichier fourni par le sujet ; vélos, plots et abonnés sont générés avec une graine fixe pour être reproductibles.</p>
+    </section>
+  </div>
+
+  <footer>
+    <span>Mathias Lefrançois</span>
+    <a href="https://github.com/Mathzecatt/L1_BDD">Code source</a>
+    <a href="https://mathiaslefrancois.fr">Portfolio</a>
+  </footer>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/asciinema-player@3.17.0/dist/bundle/asciinema-player.min.js"></script>
+<script>
+  const marqueurs = [[5.4, "Stations en maintenance"], [9.9, "Détail d'une station"], [14.6, "Ajout refusé par PostgreSQL"], [26.8, "Abonnements"], [32.7, "Requête avec HAVING"]];
+  let lecteur = null;
+
+  const liste = document.getElementById("chapitres");
+  for (const [t, nom] of marqueurs) {
+    const li = document.createElement("li");
+    const b = document.createElement("button");
+    b.type = "button";
+    const temps = document.createElement("time");
+    temps.textContent = "0:" + String(Math.floor(t)).padStart(2, "0");
+    b.append(temps, document.createTextNode(nom));
+    b.addEventListener("click", () => { if (lecteur) { lecteur.seek(t); lecteur.play(); } });
+    li.append(b);
+    liste.append(li);
+  }
+
+  function demarrer() {
+    lecteur = AsciinemaPlayer.create("vcub.cast", document.getElementById("lecteur"), {
+      cols: 100, rows: 30, fit: "width", poster: "npt:0:4", markers: marqueurs,
+      terminalFontFamily: "'JetBrains Mono', ui-monospace, Menlo, monospace", theme: "asciinema"
+    });
+  }
+
+  // Le lecteur mesure la police au démarrage : on attend qu'elle soit chargée.
+  (document.fonts && document.fonts.load ? document.fonts.load("16px 'JetBrains Mono'").then(() => document.fonts.ready) : Promise.resolve())
+    .catch(() => {}).then(demarrer);
+</script>
+</body>
+</html>
